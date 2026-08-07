@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shunya</string>
+
+    <string name="accessibility_label">Shunya feed watcher</string>
+
+    <string name="accessibility_summary">Interrupts short-video feeds. Reads nothing else.</string>
+
+    <!--
+      Shown verbatim on the system permission screen, so it is written for the
+      person deciding, not for a reviewer: what is watched, what is not, and
+      where the data goes.
+    -->
+    <string name="accessibility_description">Shunya watches for short-video feeds — Reels, Shorts, Spotlight — and interrupts them, both when you arrive and again after you have scrolled for a while.\n\nIt can only see the apps that host those feeds. It is never sent anything from your other apps, including banking, messaging and keyboards. Nothing it sees is recorded, and nothing leaves your phone.\n\nThe rest of those apps still work normally. Messages, search and your own profile are not touched.</string>
+</resources>

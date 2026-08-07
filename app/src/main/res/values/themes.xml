@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Deliberately not DayNight. The launcher is black at all times: on the
+      Edge 40's pOLED panel a black pixel is an unlit pixel, so the home screen
+      is both the least stimulating and the cheapest thing the display can show.
+    -->
+    <style name="Theme.Shunya" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
