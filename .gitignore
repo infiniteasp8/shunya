@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+.idea/
+.DS_Store
+
+# Trailing slash, no leading slash: matches at any depth, so app/build is
+# caught as well as the root one.
+build/
+captures/
+.externalNativeBuild
+.cxx
+
+# Machine-specific SDK path.
+local.properties
+
+# Signing material — never commit these.
+*.jks
+*.keystore
+keystore.properties
