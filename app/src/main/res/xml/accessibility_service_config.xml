@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Scope is everything here.
+
+  `packageNames` restricts the service to the short-video apps it exists to
+  watch. Android will not deliver it an event from any other app, so it is
+  structurally incapable of observing a banking app, a password manager, or a
+  keyboard. That is a stronger guarantee than a privacy policy promising not to
+  look, and it is the argument this app makes to Play review.
+
+  `flagReportViewIds` is required: view-id resource names are how a feed surface
+  is told apart from a direct-messages surface within the same app.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_description"
+    android:notificationTimeout="100"
+    android:packageNames="com.instagram.android,com.google.android.youtube,com.facebook.katana,com.snapchat.android,com.zhiliaoapp.musically,com.ss.android.ugc.trill,in.mohalla.video"
+    android:summary="@string/accessibility_summary" />
