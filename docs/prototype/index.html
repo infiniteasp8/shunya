@@ -1,0 +1,762 @@
+<title>Void — launcher prototype</title>
+
+<style>
+  :root {
+    --void:    #000000;
+    --ink:     #E8E6E1;
+    --ash:     #4A4844;
+    --hair:    #2A2925;
+    --ember:   #C4633A;
+
+    /* page chrome around the device — this part is theme-aware */
+    --page-bg:   #F2F0EC;
+    --page-ink:  #1B1A18;
+    --page-dim:  #6E6A63;
+    --page-hair: #D8D4CC;
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
+    --ease: cubic-bezier(.22,.61,.36,1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg:   #131211;
+      --page-ink:  #DEDBD5;
+      --page-dim:  #7A756D;
+      --page-hair: #2C2A27;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg:   #131211;
+    --page-ink:  #DEDBD5;
+    --page-dim:  #7A756D;
+    --page-hair: #2C2A27;
+  }
+  :root[data-theme="light"] {
+    --page-bg:   #F2F0EC;
+    --page-ink:  #1B1A18;
+    --page-dim:  #6E6A63;
+    --page-hair: #D8D4CC;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--page-ink);
+    font-family: var(--mono);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100dvh;
+  }
+
+  /* ─── the device ─────────────────────────────────────────── */
+
+  .device {
+    position: relative;
+    width: 100%;
+    height: 100dvh;
+    background: var(--void);
+    color: var(--ink);
+    overflow: hidden;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    flex: none;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 34px 30px calc(26px + env(safe-area-inset-bottom, 0px));
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: opacity .26s var(--ease), transform .26s var(--ease), visibility .26s;
+  }
+  .screen[data-on] {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  /* ─── home ───────────────────────────────────────────────── */
+
+  .clock {
+    margin-top: 14vh;
+    font-size: clamp(68px, 21vw, 104px);
+    font-weight: 200;
+    letter-spacing: -.05em;
+    line-height: .9;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .date {
+    margin-top: 18px;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: .3em;
+    color: var(--ash);
+  }
+
+  .void-gap { flex: 1 1 auto; min-height: 40px; }
+
+  .tier0 {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 21px;
+  }
+  .app {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 2px 0;
+    font: inherit;
+    font-size: 19px;
+    letter-spacing: .015em;
+    color: color-mix(in srgb, var(--ink) 70%, transparent);
+    cursor: pointer;
+    transition: color .18s var(--ease);
+  }
+  .app:hover, .app:focus-visible { color: var(--ink); }
+  .app:focus-visible { outline: 1px solid var(--ash); outline-offset: 6px; }
+
+  .grip {
+    margin: 24px auto 0;
+    width: 34px;
+    height: 1px;
+    background: var(--hair);
+    border: 0;
+    padding: 14px 0;
+    background-clip: content-box;
+    cursor: pointer;
+    flex: none;
+  }
+  .grip:focus-visible { outline: 1px solid var(--ash); outline-offset: 4px; }
+
+  /* ─── search ─────────────────────────────────────────────── */
+
+  .search-top { flex: 1 1 auto; min-height: 22vh; }
+
+  .field {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .caret {
+    width: 9px;
+    height: 30px;
+    background: var(--ember);
+    flex: none;
+    animation: blink 1.15s steps(1) infinite;
+  }
+  @keyframes blink { 0%,55% { opacity: 1 } 56%,100% { opacity: 0 } }
+
+  .entry {
+    flex: 1 1 auto;
+    min-width: 0;
+    appearance: none;
+    background: none;
+    border: 0;
+    outline: 0;
+    font: inherit;
+    font-size: 29px;
+    font-weight: 300;
+    letter-spacing: .01em;
+    color: var(--ink);
+    caret-color: transparent;
+  }
+  .entry::placeholder { color: var(--hair); }
+
+  .echo {
+    margin-top: 34px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 76px;
+  }
+  .echo-item {
+    font-size: 17px;
+    color: color-mix(in srgb, var(--ink) 46%, transparent);
+    letter-spacing: .015em;
+  }
+  .echo-note {
+    font-size: 11px;
+    letter-spacing: .22em;
+    color: var(--ash);
+  }
+  .echo-note.warn { color: var(--ember); }
+
+  .search-bottom { flex: 1 1 auto; }
+
+  .back {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 12px 0;
+    font: inherit;
+    font-size: 12px;
+    letter-spacing: .24em;
+    color: var(--ash);
+    cursor: pointer;
+    text-align: left;
+    align-self: flex-start;
+  }
+  .back:hover { color: var(--ink); }
+  .back:focus-visible { outline: 1px solid var(--ash); outline-offset: 6px; }
+
+  /* ─── gate ───────────────────────────────────────────────── */
+
+  .gate-name {
+    margin-top: 12vh;
+    font-size: 34px;
+    font-weight: 300;
+    letter-spacing: -.01em;
+    color: var(--ember);
+  }
+  .gate-stat {
+    margin-top: 16px;
+    font-size: 12px;
+    line-height: 2;
+    letter-spacing: .1em;
+    color: var(--ash);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .why {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .why-label {
+    font-size: 11px;
+    letter-spacing: .26em;
+    color: var(--ash);
+  }
+  .why-input {
+    appearance: none;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--hair);
+    outline: 0;
+    padding: 0 0 10px;
+    font: inherit;
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--ink);
+    transition: border-color .2s var(--ease);
+  }
+  .why-input:focus { border-bottom-color: var(--ember); }
+  .why-input::placeholder { color: var(--hair); }
+
+  .hold-wrap {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+  }
+
+  .hold {
+    position: relative;
+    width: 108px;
+    height: 108px;
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    touch-action: none;
+    opacity: .3;
+    pointer-events: none;
+    transition: opacity .3s var(--ease);
+  }
+  .hold[data-armed] { opacity: 1; pointer-events: auto; }
+  .hold:focus-visible { outline: 1px solid var(--ember); outline-offset: 8px; border-radius: 50%; }
+
+  .hold svg { display: block; transform: rotate(-90deg); }
+  .hold circle { fill: none; stroke-width: 1; }
+  .ring-track { stroke: var(--hair); }
+  .ring-fill  { stroke: var(--ember); stroke-dasharray: 289.03; stroke-dashoffset: 289.03; }
+
+  .hold-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    letter-spacing: .2em;
+    color: var(--ash);
+    pointer-events: none;
+  }
+  .hold[data-armed] .hold-label { color: var(--ember); }
+
+  /* ─── opened ─────────────────────────────────────────────── */
+
+  .open-mid {
+    margin: auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .open-name {
+    font-size: 26px;
+    font-weight: 300;
+    color: var(--ink);
+  }
+  .open-count {
+    font-size: 54px;
+    font-weight: 200;
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ash);
+  }
+  .open-why {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ash);
+    max-width: 30ch;
+  }
+  .open-why em { color: var(--ink); font-style: normal; }
+
+  /* ─── notes (page chrome, not the device) ────────────────── */
+
+  .notes {
+    width: 100%;
+    max-width: 62ch;
+    padding: 72px 30px 96px;
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--page-ink);
+  }
+  .notes h2 {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .28em;
+    color: var(--page-dim);
+    margin: 0 0 28px;
+  }
+  .notes h3 {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0;
+    margin: 40px 0 8px;
+    text-wrap: balance;
+  }
+  .notes p { margin: 0 0 6px; color: var(--page-dim); }
+  .notes p.lead { color: var(--page-ink); }
+  .notes hr { border: 0; border-top: 1px solid var(--page-hair); margin: 40px 0 0; }
+  .notes code {
+    font-size: .92em;
+    color: var(--page-ink);
+    background: color-mix(in srgb, var(--page-hair) 60%, transparent);
+    padding: 1px 5px;
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: 8ch 1fr;
+    gap: 4px 16px;
+    margin: 14px 0 0;
+  }
+  .kv dt { color: var(--page-ink); font-size: 12px; letter-spacing: .1em; padding-top: 3px; }
+  .kv dd { margin: 0; color: var(--page-dim); }
+
+  /* ─── desktop: device becomes a phone ────────────────────── */
+
+  @media (min-width: 900px) {
+    .stage {
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 64px;
+      padding: 64px 40px;
+    }
+    .device {
+      width: 390px;
+      height: 800px;
+      border-radius: 40px;
+      box-shadow: 0 0 0 1px var(--page-hair), 0 40px 90px -30px rgba(0,0,0,.5);
+      position: sticky;
+      top: 64px;
+    }
+    .notes { padding: 0 0 40px; max-width: 54ch; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+</style>
+
+<div class="stage">
+
+  <div class="device" id="device">
+
+    <!-- HOME -->
+    <section class="screen" id="s-home" data-on>
+      <div class="clock" id="clock">00:00</div>
+      <div class="date" id="date">—</div>
+      <div class="void-gap"></div>
+      <nav class="tier0" id="tier0"></nav>
+      <button class="grip" id="grip" aria-label="Open search"></button>
+    </section>
+
+    <!-- SEARCH -->
+    <section class="screen" id="s-search">
+      <div class="search-top"></div>
+      <div class="field">
+        <span class="caret" aria-hidden="true"></span>
+        <input class="entry" id="entry" type="text" placeholder="type a name"
+               autocapitalize="none" autocorrect="off" autocomplete="off"
+               spellcheck="false" enterkeyhint="go" aria-label="Type an app name">
+      </div>
+      <div class="echo" id="echo"></div>
+      <div class="search-bottom"></div>
+      <button class="back" data-goto="home">← back</button>
+    </section>
+
+    <!-- GATE -->
+    <section class="screen" id="s-gate">
+      <div class="gate-name" id="gateName">—</div>
+      <div class="gate-stat" id="gateStat"></div>
+      <div class="why">
+        <label class="why-label" for="whyInput">what for?</label>
+        <input class="why-input" id="whyInput" type="text" placeholder="one line"
+               autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="hold-wrap">
+        <button class="hold" id="hold" aria-label="Hold to open">
+          <svg width="108" height="108" viewBox="0 0 108 108" aria-hidden="true">
+            <circle class="ring-track" cx="54" cy="54" r="46"></circle>
+            <circle class="ring-fill" id="ringFill" cx="54" cy="54" r="46"></circle>
+          </svg>
+          <span class="hold-label" id="holdLabel">hold</span>
+        </button>
+        <button class="back" data-goto="home" style="align-self:center">not now</button>
+      </div>
+    </section>
+
+    <!-- OPENED -->
+    <section class="screen" id="s-open">
+      <div class="open-mid">
+        <div class="open-name" id="openName">—</div>
+        <div class="open-count" id="openCount">5:00</div>
+        <div class="open-why" id="openWhy"></div>
+      </div>
+      <button class="back" data-goto="home">← home</button>
+    </section>
+
+  </div>
+
+  <aside class="notes">
+    <h2>PROTOTYPE NOTES</h2>
+    <p class="lead">This is the feel test, not the build. Open it on the Edge 40 and try to reach Instagram the way you would at 11pm.</p>
+
+    <h3>Three tiers, three different costs</h3>
+    <dl class="kv">
+      <dt>tier 0</dt><dd>phone, messages, camera, maps, clock — visible, one tap.</dd>
+      <dt>tier 1</dt><dd>whatsapp, gpay, gmail, uber, spotify… — invisible. Type 3+ characters, prefix match only, press enter.</dd>
+      <dt>tier 2</dt><dd>instagram, youtube, linkedin, reddit — invisible <em>and</em> unsearchable. Nothing appears until you type the name in full, exactly. Then the gate.</dd>
+    </dl>
+
+    <h3>Why typing, not tapping</h3>
+    <p>Seeing a coloured icon is recognition — automatic, pre-conscious. Typing a name is recall — it cannot happen without you deciding to do it. Nine keystrokes is enough time for the thumb to lose the argument.</p>
+
+    <h3>What the strictness buys</h3>
+    <p>For tier 2 there is no prefix match and no autocomplete. Typing <code>instagra</code> shows nothing at all — the screen stays empty right up to the last character. No partial reward, no near-miss.</p>
+    <p>The real app must set <code>autocorrect="off"</code> and <code>autocapitalize="none"</code>, or Gboard will happily finish the word for you and hand back everything this mechanic just bought.</p>
+
+    <h3>The gate is the product</h3>
+    <p>Ten seconds of holding, with today's count in front of you the whole time. Release early and it resets. The reason you type is shown back to you on the way in — not stored, not judged, just quoted.</p>
+    <p>Note the asymmetry: <em>not now</em> is a wide, easy target. The way in is a small circle you have to keep your thumb on.</p>
+
+    <h3>What this prototype can't show</h3>
+    <p>Home → app is probably not how you actually get in. Notification → app and recents → app are, and no launcher can touch those. That needs an AccessibilityService watching <code>TYPE_WINDOW_STATE_CHANGED</code> and throwing this same gate over the app whatever door you came through.</p>
+
+    <hr>
+  </aside>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TIER0 = ['phone', 'messages', 'camera', 'maps', 'clock'];
+  var TIER1 = ['whatsapp', 'gpay', 'gmail', 'calendar', 'calculator', 'uber',
+               'spotify', 'chrome', 'swiggy', 'photos', 'notes', 'settings'];
+  var TIER2 = {
+    instagram: { count: 14, mins: 47 },
+    youtube:   { count: 9,  mins: 63 },
+    linkedin:  { count: 6,  mins: 18 },
+    reddit:    { count: 11, mins: 39 }
+  };
+
+  var HOLD_MS = 10000;
+  var CIRC = 289.03;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var screens = {
+    home:   $('s-home'),
+    search: $('s-search'),
+    gate:   $('s-gate'),
+    open:   $('s-open')
+  };
+  var state = 'home';
+
+  function go(next) {
+    if (!screens[next]) return;
+    cancelHold();
+    Object.keys(screens).forEach(function (k) {
+      if (k === next) screens[k].setAttribute('data-on', '');
+      else screens[k].removeAttribute('data-on');
+    });
+    state = next;
+    if (next === 'home') { $('entry').value = ''; renderEcho(''); }
+    if (next === 'search') { setTimeout(function () { $('entry').focus(); }, 60); }
+    if (next === 'gate') { $('whyInput').value = ''; armHold(); }
+  }
+
+  /* ── clock ─────────────────────────────────────────────── */
+
+  var DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
+  var MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function tickClock() {
+    var d = new Date();
+    $('clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    $('date').textContent = DAYS[d.getDay()] + '  ' + pad(d.getDate()) + '  ' + MONTHS[d.getMonth()];
+  }
+  tickClock();
+  setInterval(tickClock, 10000);
+
+  /* ── home ──────────────────────────────────────────────── */
+
+  var tier0El = $('tier0');
+  TIER0.forEach(function (name) {
+    var b = document.createElement('button');
+    b.className = 'app';
+    b.type = 'button';
+    b.textContent = name;
+    b.addEventListener('click', function () { openApp(name, 1); });
+    tier0El.appendChild(b);
+  });
+
+  $('grip').addEventListener('click', function () { go('search'); });
+
+  // Swipe up anywhere on home opens search.
+  var touchY = null;
+  screens.home.addEventListener('touchstart', function (e) {
+    touchY = e.touches[0].clientY;
+  }, { passive: true });
+  screens.home.addEventListener('touchend', function (e) {
+    if (touchY === null) return;
+    var dy = touchY - e.changedTouches[0].clientY;
+    touchY = null;
+    if (dy > 55) go('search');
+  }, { passive: true });
+
+  // On a keyboard, any letter drops you straight into search with that letter.
+  document.addEventListener('keydown', function (e) {
+    if (state === 'home' && /^[a-z]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      go('search');
+      $('entry').value = e.key;
+      renderEcho(e.key);
+      e.preventDefault();
+    } else if (e.key === 'Escape' && state !== 'home') {
+      go('home');
+    }
+  });
+
+  /* ── search ────────────────────────────────────────────── */
+
+  var entry = $('entry');
+  var echo = $('echo');
+
+  function resolve(raw) {
+    var q = raw.trim().toLowerCase();
+    if (!q) return { kind: 'empty' };
+
+    if (Object.prototype.hasOwnProperty.call(TIER2, q)) {
+      return { kind: 'gate', name: q };
+    }
+    if (q.length < 3) return { kind: 'short' };
+
+    var pool = TIER1.concat(TIER0);
+    var hits = pool.filter(function (a) { return a.indexOf(q) === 0; });
+
+    if (hits.length === 1) return { kind: 'one', name: hits[0] };
+    if (hits.length > 1 && hits.length <= 3) return { kind: 'many', hits: hits };
+    return { kind: 'none' };
+  }
+
+  function line(text, cls) {
+    var d = document.createElement('div');
+    d.className = cls || 'echo-item';
+    d.textContent = text;
+    return d;
+  }
+
+  function renderEcho(raw) {
+    var r = resolve(raw);
+    echo.textContent = '';
+
+    if (r.kind === 'one') {
+      echo.appendChild(line(r.name));
+      echo.appendChild(line('enter to open', 'echo-note'));
+    } else if (r.kind === 'many') {
+      r.hits.forEach(function (h) { echo.appendChild(line(h)); });
+      echo.appendChild(line('keep typing', 'echo-note'));
+    } else if (r.kind === 'gate') {
+      echo.appendChild(line(r.name));
+      echo.appendChild(line('enter to continue', 'echo-note warn'));
+    }
+    // 'empty', 'short' and 'none' all render nothing. That silence is the point.
+  }
+
+  entry.addEventListener('input', function () { renderEcho(entry.value); });
+
+  entry.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var r = resolve(entry.value);
+    if (r.kind === 'one') openApp(r.name, 1);
+    else if (r.kind === 'gate') showGate(r.name);
+  });
+
+  /* ── gate ──────────────────────────────────────────────── */
+
+  var pendingApp = null;
+  var whyInput = $('whyInput');
+  var hold = $('hold');
+  var ring = $('ringFill');
+  var holdLabel = $('holdLabel');
+
+  function showGate(name) {
+    pendingApp = name;
+    var s = TIER2[name];
+    $('gateName').textContent = name;
+    $('gateStat').textContent =
+      'opened ' + s.count + ' times today\n' +
+      s.mins + ' minutes since midnight';
+    $('gateStat').style.whiteSpace = 'pre-line';
+    go('gate');
+  }
+
+  function armHold() {
+    setRing(0);
+    holdLabel.textContent = 'hold';
+    hold.removeAttribute('data-armed');
+  }
+
+  function setRing(p) {
+    ring.style.strokeDashoffset = String(CIRC * (1 - p));
+  }
+
+  whyInput.addEventListener('input', function () {
+    if (whyInput.value.trim().length >= 3) hold.setAttribute('data-armed', '');
+    else { hold.removeAttribute('data-armed'); cancelHold(); }
+  });
+
+  var raf = null;
+  var holdStart = 0;
+
+  function step(now) {
+    var p = Math.min((now - holdStart) / HOLD_MS, 1);
+    setRing(p);
+    holdLabel.textContent = Math.ceil((1 - p) * HOLD_MS / 1000) + 's';
+    if (p >= 1) {
+      raf = null;
+      openApp(pendingApp, 2, whyInput.value.trim());
+      return;
+    }
+    raf = requestAnimationFrame(step);
+  }
+
+  function startHold(e) {
+    if (!hold.hasAttribute('data-armed') || raf) return;
+    e.preventDefault();
+    holdStart = performance.now();
+    raf = requestAnimationFrame(step);
+  }
+
+  function cancelHold() {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    setRing(0);
+    if (state === 'gate') holdLabel.textContent = 'hold';
+  }
+
+  hold.addEventListener('pointerdown', startHold);
+  hold.addEventListener('pointerup', cancelHold);
+  hold.addEventListener('pointercancel', cancelHold);
+  hold.addEventListener('pointerleave', cancelHold);
+  hold.addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.key === 'Enter') startHold(e);
+  });
+  hold.addEventListener('keyup', cancelHold);
+
+  /* ── opened ────────────────────────────────────────────── */
+
+  var sessionTimer = null;
+
+  function openApp(name, tier, why) {
+    $('openName').textContent = name;
+    $('openWhy').textContent = '';
+    if (tier === 2 && why) {
+      var p = document.createElement('span');
+      p.textContent = 'you came here to ';
+      var em = document.createElement('em');
+      em.textContent = why;
+      p.appendChild(em);
+      $('openWhy').appendChild(p);
+    }
+    go('open');
+    startSession(tier === 2 ? 300 : 600);
+  }
+
+  function startSession(seconds) {
+    if (sessionTimer) clearInterval(sessionTimer);
+    var left = seconds;
+    var el = $('openCount');
+    var paint = function () {
+      el.textContent = Math.floor(left / 60) + ':' + pad(left % 60);
+    };
+    paint();
+    sessionTimer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(sessionTimer);
+        sessionTimer = null;
+        go('home');
+        return;
+      }
+      paint();
+    }, 1000);
+  }
+
+  /* ── back buttons ──────────────────────────────────────── */
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-goto]'), function (b) {
+    b.addEventListener('click', function () {
+      if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
+      go(b.getAttribute('data-goto'));
+    });
+  });
+
+})();
+</script>
