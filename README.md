@@ -100,17 +100,11 @@ seeing them, which is a stronger guarantee than a policy promising not to look.
   to go.
 - **No colour**, except one burnt orange spent entirely on friction.
 
-## Build
+## Install
 
-Requires JDK 17 and the Android SDK (platform 35).
-
-```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-./gradlew :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
+Download the latest `.apk` from the
+[Releases](https://github.com/infiniteasp8/shunya/releases) page and open it on
+the phone. Android asks once to allow installs from your browser or files app.
 
 Then on the phone:
 
@@ -122,20 +116,65 @@ Then on the phone:
 Steps 3 and 4 are prompted in-app and are optional — the launcher works without
 them, just blind.
 
+Every push to `main` also builds an APK as a workflow artifact under
+[Actions](https://github.com/infiniteasp8/shunya/actions), for anyone who wants
+something newer than the last release.
+
+## Build from source
+
+Requires JDK 17 and the Android SDK (platform 35).
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+./gradlew :app:testReleaseUnitTest :app:assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+Without a signing keystore in the environment the release APK is signed with
+your local debug key. It installs fine; it just cannot update a copy signed by
+anyone else. `:app:assembleDebug` builds a separate `dev.anantpandey.shunya.debug`
+package, so you can work on the launcher next to the copy you actually use.
+
+## Releases
+
+Tagging `vX.Y.Z` on `main` builds the APK on GitHub Actions and attaches it to
+a GitHub Release. The build is signed with the keystore held in the repository
+secrets:
+
+| Secret | Holds |
+|---|---|
+| `SHUNYA_KEYSTORE_BASE64` | the `.jks` file, base64-encoded |
+| `SHUNYA_KEYSTORE_PASSWORD` | its store password |
+| `SHUNYA_KEY_ALIAS` | the key alias |
+| `SHUNYA_KEY_PASSWORD` | the key password |
+
+Android only updates an app over a build signed with the same key, so this
+keystore is what makes releases updatable. Lose it and every user has to
+uninstall and reinstall once. If the secrets are absent the workflow still
+produces an installable APK, signed with a throwaway debug key — fine for
+trying it, not for shipping.
+
 ## Status
 
 Working, and in daily use on a Motorola Edge 40. Early — the interaction model
 is settled, the details are not.
 
-Known next:
+Known next, each tracked as an issue:
 
 - Reorder tier-0 apps rather than accepting seeded order
+  ([#6](https://github.com/infiniteasp8/shunya/issues/6))
 - Tune hold duration and feed threshold from settings
+  ([#7](https://github.com/infiniteasp8/shunya/issues/7))
 - A cooldown on disabling the watcher, so the decision to switch it off is made
   by the same person who set it up rather than by whoever is holding the phone
-  at 11pm
+  at 11pm ([#8](https://github.com/infiniteasp8/shunya/issues/8))
 - Feed surface IDs are other people's internals and will drift when they
   redesign; they need a maintenance path
+  ([#9](https://github.com/infiniteasp8/shunya/issues/9))
+- Rename an app so two with the same label are typeable again
+  ([#5](https://github.com/infiniteasp8/shunya/issues/5))
 
 ## A note on publishing
 
@@ -149,6 +188,12 @@ keeps them separable on purpose.
 `docs/prototype/` holds the interaction prototype that preceded the app — a
 single self-contained HTML file used to test whether ten seconds of holding
 feels like a speed bump or a punishment before any Kotlin was written.
+
+## Contributing
+
+Bugs are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a
+feature. Most of what a launcher could add is on the list of things this one
+deliberately does not do.
 
 ## Licence
 
