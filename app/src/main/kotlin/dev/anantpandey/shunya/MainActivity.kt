@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
                             resolution = viewModel.resolution,
                             onQueryChange = viewModel::onQueryChange,
                             onSubmit = { viewModel.submit(::launchApp) },
+                            onPick = { viewModel.pick(it, ::launchApp) },
                             onBack = viewModel::goHome,
                         )
 
