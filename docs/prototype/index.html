@@ -1,3 +1,6 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Void — launcher prototype</title>
 
 <style>
@@ -178,23 +181,60 @@
   .entry::placeholder { color: var(--hair); }
 
   .echo {
-    margin-top: 34px;
+    margin-top: 24px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
     min-height: 76px;
   }
-  .echo-item {
-    font-size: 17px;
-    color: color-mix(in srgb, var(--ink) 46%, transparent);
-    letter-spacing: .015em;
+  .echo-list {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
   }
+
+  /* A row is a word you summoned, and a thumb-sized target. The row that
+     enter would open is the only one at full ink. */
+  .echo-item {
+    appearance: none;
+    background: none;
+    border: 0;
+    margin: 0;
+    padding: 10px 0;
+    min-height: 44px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font: inherit;
+    font-size: 17px;
+    letter-spacing: .015em;
+    text-align: left;
+    color: color-mix(in srgb, var(--ink) 46%, transparent);
+    cursor: pointer;
+    transition: color .18s var(--ease);
+  }
+  .echo-item:hover, .echo-item:focus-visible { color: var(--ink); }
+  .echo-item:focus-visible { outline: 1px solid var(--ash); outline-offset: 4px; }
+  .echo-item[aria-selected="true"] { color: var(--ink); }
+  .echo-hint {
+    font-size: 11px;
+    letter-spacing: .14em;
+    color: var(--ash);
+  }
+
   .echo-note {
+    margin-top: 10px;
+    min-height: 14px;
     font-size: 11px;
     letter-spacing: .22em;
     color: var(--ash);
   }
   .echo-note.warn { color: var(--ember); }
+  .echo-note.nudge { animation: nudge .32s var(--ease); }
+  @keyframes nudge {
+    0%, 100% { transform: none }
+    30%      { transform: translateX(5px) }
+    65%      { transform: translateX(-3px) }
+  }
 
   .search-bottom { flex: 1 1 auto; }
 
@@ -421,9 +461,14 @@
         <span class="caret" aria-hidden="true"></span>
         <input class="entry" id="entry" type="text" placeholder="type a name"
                autocapitalize="none" autocorrect="off" autocomplete="off"
-               spellcheck="false" enterkeyhint="go" aria-label="Type an app name">
+               spellcheck="false" enterkeyhint="go" aria-label="Type an app name"
+               role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+               aria-expanded="false" aria-controls="echoList">
       </div>
-      <div class="echo" id="echo"></div>
+      <div class="echo" id="echo">
+        <div class="echo-list" id="echoList" role="listbox" aria-label="Matches"></div>
+        <div class="echo-note" id="echoNote" role="status" aria-live="polite"></div>
+      </div>
       <div class="search-bottom"></div>
       <button class="back" data-goto="home">← back</button>
     </section>
@@ -468,19 +513,25 @@
     <h3>Three tiers, three different costs</h3>
     <dl class="kv">
       <dt>tier 0</dt><dd>phone, messages, camera, maps, clock — visible, one tap.</dd>
-      <dt>tier 1</dt><dd>whatsapp, gpay, gmail, uber, spotify… — invisible. Type 3+ characters, prefix match only, press enter.</dd>
+      <dt>tier 1</dt><dd>whatsapp, gpay, gmail, uber, spotify… — invisible. Type 3+ characters, prefix match only, press enter. A complete name always wins, however short.</dd>
       <dt>tier 2</dt><dd>instagram, youtube, linkedin, reddit — invisible <em>and</em> unsearchable. Nothing appears until you type the name in full, exactly. Then the gate.</dd>
     </dl>
 
     <h3>Why typing, not tapping</h3>
     <p>Seeing a coloured icon is recognition — automatic, pre-conscious. Typing a name is recall — it cannot happen without you deciding to do it. Nine keystrokes is enough time for the thumb to lose the argument.</p>
 
+    <h3>What enter does</h3>
+    <p>Enter opens the one row that is clearly meant: the sole match, or the sole exact match when others only share its prefix. <code>phone</code> opens phone even though phone link is listed beneath it. When nothing is clearly meant, enter does nothing and the line underneath says why.</p>
+
+    <h3>Two apps, one name</h3>
+    <p>Try <code>auth</code>. Two authenticators match, and no keystroke will ever separate them — so the rows can be tapped, and a quiet hint beside each says who made it. The rows are words you summoned by typing, not a grid you browsed; tapping one is still recall. Past three matches the rest are counted, not listed.</p>
+
     <h3>What the strictness buys</h3>
     <p>For tier 2 there is no prefix match and no autocomplete. Typing <code>instagra</code> shows nothing at all — the screen stays empty right up to the last character. No partial reward, no near-miss.</p>
     <p>The real app must set <code>autocorrect="off"</code> and <code>autocapitalize="none"</code>, or Gboard will happily finish the word for you and hand back everything this mechanic just bought.</p>
 
     <h3>The gate is the product</h3>
-    <p>Ten seconds of holding, with today's count in front of you the whole time. Release early and it resets. The reason you type is shown back to you on the way in — not stored, not judged, just quoted.</p>
+    <p>Ten seconds of holding, with today's count in front of you the whole time. Lift early and it resets. Drifting off the ring is not lifting — a thumb that wanders a few pixels is still a thumb that is holding. The reason you type is shown back to you on the way in — not stored, not judged, just quoted.</p>
     <p>Note the asymmetry: <em>not now</em> is a wide, easy target. The way in is a small circle you have to keep your thumb on.</p>
 
     <h3>What this prototype can't show</h3>
@@ -495,15 +546,47 @@
 (function () {
   'use strict';
 
+  /* ── apps ──────────────────────────────────────────────── */
+
+  // Labels that sit on the home screen, and labels that earn a gate. In the
+  // app these are per-package tier assignments; here they are seeds.
   var TIER0 = ['phone', 'messages', 'camera', 'maps', 'clock'];
-  var TIER1 = ['whatsapp', 'gpay', 'gmail', 'calendar', 'calculator', 'uber',
-               'spotify', 'chrome', 'swiggy', 'photos', 'notes', 'settings'];
   var TIER2 = {
     instagram: { count: 14, mins: 47 },
     youtube:   { count: 9,  mins: 63 },
     linkedin:  { count: 6,  mins: 18 },
     reddit:    { count: 11, mins: 39 }
   };
+
+  // What a phone actually has: two apps that share a name, and one name that
+  // is a prefix of another. Both used to be dead ends.
+  var MOCK = [
+    'phone', 'messages', 'camera', 'maps', 'clock',
+    'whatsapp', 'gpay', 'gmail', 'calendar', 'calculator', 'uber',
+    'spotify', 'chrome', 'swiggy', 'photos', 'notes', 'settings',
+    { label: 'phone link', hint: 'microsoft' },
+    { label: 'authenticator', hint: 'google' },
+    { label: 'authenticator', hint: 'microsoft' },
+    'instagram', 'youtube', 'linkedin', 'reddit'
+  ];
+
+  // What you type against: lowercase, letters and digits only, so "phone link"
+  // is reached by typing phonelink and nobody has to find the space bar.
+  function keyOf(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+  var apps = MOCK.map(function (m, i) {
+    var label = (typeof m === 'string' ? m : m.label).toLowerCase();
+    var key = keyOf(label);
+    return {
+      id: key + '#' + i,
+      label: label,
+      key: key,
+      hint: typeof m === 'string' ? '' : m.hint,
+      tier: Object.prototype.hasOwnProperty.call(TIER2, key) ? 2
+          : TIER0.indexOf(key) >= 0 ? 0
+          : 1
+    };
+  });
 
   var HOLD_MS = 10000;
   var CIRC = 289.03;
@@ -520,6 +603,10 @@
   function go(next) {
     if (!screens[next]) return;
     cancelHold();
+    // Leaving the opened screen ends the session, whichever way you leave.
+    // A timer that outlives its screen comes back later and yanks you home
+    // from the middle of something else.
+    if (next !== 'open') stopSession();
     Object.keys(screens).forEach(function (k) {
       if (k === next) screens[k].setAttribute('data-on', '');
       else screens[k].removeAttribute('data-on');
@@ -549,11 +636,13 @@
 
   var tier0El = $('tier0');
   TIER0.forEach(function (name) {
+    var app = apps.filter(function (a) { return a.key === name; })[0];
+    if (!app) return;
     var b = document.createElement('button');
     b.className = 'app';
     b.type = 'button';
-    b.textContent = name;
-    b.addEventListener('click', function () { openApp(name, 1); });
+    b.textContent = app.label;
+    b.addEventListener('click', function () { openApp(app); });
     tier0El.appendChild(b);
   });
 
@@ -571,11 +660,11 @@
     if (dy > 55) go('search');
   }, { passive: true });
 
-  // On a keyboard, any letter drops you straight into search with that letter.
+  // On a keyboard, any letter or digit drops you straight into search with it.
   document.addEventListener('keydown', function (e) {
-    if (state === 'home' && /^[a-z]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (state === 'home' && /^[a-z0-9]$/i.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
       go('search');
-      $('entry').value = e.key;
+      $('entry').value = e.key.toLowerCase();
       renderEcho(e.key);
       e.preventDefault();
     } else if (e.key === 'Escape' && state !== 'home') {
@@ -585,58 +674,169 @@
 
   /* ── search ────────────────────────────────────────────── */
 
-  var entry = $('entry');
-  var echo = $('echo');
+  var MIN_PREFIX = 3;
+  // Three rows. Enough to tell calendar from calculator; not enough to browse.
+  var MAX_SHOWN = 3;
 
+  function byKey(a, b) { return a.key < b.key ? -1 : a.key > b.key ? 1 : 0; }
+  function byHint(a, b) { return a.hint < b.hint ? -1 : a.hint > b.hint ? 1 : 0; }
+
+  // Three rules: tier 2 is exact only; everything else needs three characters
+  // and matches by prefix; a complete name always wins, however short.
   function resolve(raw) {
-    var q = raw.trim().toLowerCase();
+    var q = keyOf(raw);
     if (!q) return { kind: 'empty' };
 
-    if (Object.prototype.hasOwnProperty.call(TIER2, q)) {
-      return { kind: 'gate', name: q };
-    }
-    if (q.length < 3) return { kind: 'short' };
+    // Tier two first, so a gated app is never reachable through the open path.
+    var gated = apps.filter(function (a) { return a.tier === 2 && a.key === q; });
+    if (gated.length) return { kind: 'gate', app: gated[0] };
 
-    var pool = TIER1.concat(TIER0);
-    var hits = pool.filter(function (a) { return a.indexOf(q) === 0; });
+    var exact = [], prefix = [];
+    apps.forEach(function (a) {
+      if (a.tier === 2) return;
+      if (a.key === q) exact.push(a);
+      else if (q.length >= MIN_PREFIX && a.key.indexOf(q) === 0) prefix.push(a);
+    });
+    exact.sort(byHint);
+    prefix.sort(byKey);
 
-    if (hits.length === 1) return { kind: 'one', name: hits[0] };
-    if (hits.length > 1 && hits.length <= 3) return { kind: 'many', hits: hits };
-    return { kind: 'none' };
+    var hits = exact.concat(prefix);
+    if (!hits.length) return { kind: 'none' };
+
+    // What enter opens: the sole match, or the sole exact match. Two apps with
+    // the same name are nobody's decision to make but the user's.
+    var primary = hits.length === 1 ? hits[0] : exact.length === 1 ? exact[0] : null;
+
+    return {
+      kind: 'hits',
+      shown: hits.slice(0, MAX_SHOWN),
+      hidden: Math.max(0, hits.length - MAX_SHOWN),
+      primary: primary
+    };
   }
 
-  function line(text, cls) {
-    var d = document.createElement('div');
-    d.className = cls || 'echo-item';
-    d.textContent = text;
-    return d;
+  // A hint beside every row whose name another visible row shares. The
+  // publisher usually separates them; when even that collides, the id does.
+  function hintsFor(list) {
+    var byLabel = {}, out = {};
+    list.forEach(function (a) { (byLabel[a.label] = byLabel[a.label] || []).push(a); });
+    Object.keys(byLabel).forEach(function (label) {
+      var group = byLabel[label];
+      if (group.length < 2) return;
+      var hints = group.map(function (a) { return a.hint; });
+      var distinct = hints.every(function (h, i) { return h && hints.indexOf(h) === i; });
+      group.forEach(function (a) { out[a.id] = distinct ? a.hint : a.id; });
+    });
+    return out;
+  }
+
+  // Every row is the same name: no keystroke will ever separate them.
+  function sameName(r) {
+    return r.hidden === 0 && r.shown.every(function (a) { return a.key === r.shown[0].key; });
+  }
+
+  var entry = $('entry');
+  var echoList = $('echoList');
+  var echoNote = $('echoNote');
+
+  var rows = [];   // the apps behind the rendered rows, top to bottom
+  var sel = -1;    // the row enter opens; -1 when enter should do nothing
+
+  function row(app, i, hint) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'echo-item';
+    b.id = 'echo-' + i;
+    b.setAttribute('role', 'option');
+    b.appendChild(document.createTextNode(app.label));
+    if (hint) {
+      var h = document.createElement('span');
+      h.className = 'echo-hint';
+      h.textContent = '· ' + hint;
+      b.appendChild(h);
+    }
+    b.addEventListener('click', function () { activate(app); });
+    return b;
+  }
+
+  function paintSelection() {
+    Array.prototype.forEach.call(echoList.children, function (el, i) {
+      el.setAttribute('aria-selected', i === sel ? 'true' : 'false');
+    });
+    if (sel >= 0) entry.setAttribute('aria-activedescendant', 'echo-' + sel);
+    else entry.removeAttribute('aria-activedescendant');
   }
 
   function renderEcho(raw) {
     var r = resolve(raw);
-    echo.textContent = '';
+    echoList.textContent = '';
+    echoNote.textContent = '';
+    echoNote.className = 'echo-note';
+    rows = [];
+    sel = -1;
 
-    if (r.kind === 'one') {
-      echo.appendChild(line(r.name));
-      echo.appendChild(line('enter to open', 'echo-note'));
-    } else if (r.kind === 'many') {
-      r.hits.forEach(function (h) { echo.appendChild(line(h)); });
-      echo.appendChild(line('keep typing', 'echo-note'));
+    if (r.kind === 'hits') {
+      rows = r.shown;
+      sel = r.primary ? rows.indexOf(r.primary) : -1;
+      var hints = hintsFor(rows);
+      rows.forEach(function (a, i) { echoList.appendChild(row(a, i, hints[a.id])); });
+      echoNote.textContent =
+        r.primary    ? 'enter to open' :
+        sameName(r)  ? 'same name · tap one' :
+        r.hidden > 0 ? '+' + r.hidden + ' more · keep typing' :
+                       'keep typing · or tap';
     } else if (r.kind === 'gate') {
-      echo.appendChild(line(r.name));
-      echo.appendChild(line('enter to continue', 'echo-note warn'));
+      rows = [r.app];
+      sel = 0;
+      echoList.appendChild(row(r.app, 0, ''));
+      echoNote.textContent = 'enter to continue';
+      echoNote.className = 'echo-note warn';
     }
-    // 'empty', 'short' and 'none' all render nothing. That silence is the point.
+    // 'empty' and 'none' render nothing. That silence is the point.
+
+    entry.setAttribute('aria-expanded', rows.length ? 'true' : 'false');
+    paintSelection();
+  }
+
+  function activate(app) {
+    if (app.tier === 2) showGate(app);
+    else openApp(app);
+  }
+
+  // Enter with nothing clearly meant: the note underneath is the answer, so
+  // draw the eye to it rather than doing nothing in silence.
+  function nudge() {
+    if (!rows.length) return;
+    echoNote.classList.remove('nudge');
+    void echoNote.offsetWidth;
+    echoNote.classList.add('nudge');
   }
 
   entry.addEventListener('input', function () { renderEcho(entry.value); });
 
   entry.addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    var r = resolve(entry.value);
-    if (r.kind === 'one') openApp(r.name, 1);
-    else if (r.kind === 'gate') showGate(r.name);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!rows.length) return;
+      e.preventDefault();
+      sel = e.key === 'ArrowDown'
+        ? Math.min(sel + 1, rows.length - 1)
+        : Math.max(sel - 1, -1);
+      paintSelection();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (sel >= 0) activate(rows[sel]);
+      else nudge();
+    }
+  });
+
+  // A tapped row must not steal focus from the field, or the keyboard drops
+  // away under the thumb. Click still fires.
+  echoList.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+
+  // Tapping the void around the field brings the keyboard back.
+  screens.search.addEventListener('click', function (e) {
+    if (e.target.closest('button')) return;
+    entry.focus();
   });
 
   /* ── gate ──────────────────────────────────────────────── */
@@ -647,10 +847,10 @@
   var ring = $('ringFill');
   var holdLabel = $('holdLabel');
 
-  function showGate(name) {
-    pendingApp = name;
-    var s = TIER2[name];
-    $('gateName').textContent = name;
+  function showGate(app) {
+    pendingApp = app;
+    var s = TIER2[app.key];
+    $('gateName').textContent = app.label;
     $('gateStat').textContent =
       'opened ' + s.count + ' times today\n' +
       s.mins + ' minutes since midnight';
@@ -682,7 +882,7 @@
     holdLabel.textContent = Math.ceil((1 - p) * HOLD_MS / 1000) + 's';
     if (p >= 1) {
       raf = null;
-      openApp(pendingApp, 2, whyInput.value.trim());
+      openApp(pendingApp, whyInput.value.trim());
       return;
     }
     raf = requestAnimationFrame(step);
@@ -691,6 +891,11 @@
   function startHold(e) {
     if (!hold.hasAttribute('data-armed') || raf) return;
     e.preventDefault();
+    // Capture the pointer: a thumb that drifts off the ring is still holding.
+    // Only lifting resets.
+    if (e.pointerId !== undefined && hold.setPointerCapture) {
+      try { hold.setPointerCapture(e.pointerId); } catch (_) {}
+    }
     holdStart = performance.now();
     raf = requestAnimationFrame(step);
   }
@@ -704,7 +909,6 @@
   hold.addEventListener('pointerdown', startHold);
   hold.addEventListener('pointerup', cancelHold);
   hold.addEventListener('pointercancel', cancelHold);
-  hold.addEventListener('pointerleave', cancelHold);
   hold.addEventListener('keydown', function (e) {
     if (e.key === ' ' || e.key === 'Enter') startHold(e);
   });
@@ -714,10 +918,10 @@
 
   var sessionTimer = null;
 
-  function openApp(name, tier, why) {
-    $('openName').textContent = name;
+  function openApp(app, why) {
+    $('openName').textContent = app.label;
     $('openWhy').textContent = '';
-    if (tier === 2 && why) {
+    if (app.tier === 2 && why) {
       var p = document.createElement('span');
       p.textContent = 'you came here to ';
       var em = document.createElement('em');
@@ -726,11 +930,15 @@
       $('openWhy').appendChild(p);
     }
     go('open');
-    startSession(tier === 2 ? 300 : 600);
+    startSession(app.tier === 2 ? 300 : 600);
+  }
+
+  function stopSession() {
+    if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
   }
 
   function startSession(seconds) {
-    if (sessionTimer) clearInterval(sessionTimer);
+    stopSession();
     var left = seconds;
     var el = $('openCount');
     var paint = function () {
@@ -739,12 +947,7 @@
     paint();
     sessionTimer = setInterval(function () {
       left -= 1;
-      if (left <= 0) {
-        clearInterval(sessionTimer);
-        sessionTimer = null;
-        go('home');
-        return;
-      }
+      if (left <= 0) { go('home'); return; }
       paint();
     }, 1000);
   }
@@ -752,10 +955,7 @@
   /* ── back buttons ──────────────────────────────────────── */
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-goto]'), function (b) {
-    b.addEventListener('click', function () {
-      if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
-      go(b.getAttribute('data-goto'));
-    });
+    b.addEventListener('click', function () { go(b.getAttribute('data-goto')); });
   });
 
 })();

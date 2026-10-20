@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -173,6 +172,10 @@ fun GateScreen(
 /**
  * Hold for [seconds] to pass. Lifting resets to zero rather than pausing —
  * a progress bar you can chip away at in four goes is not a ten-second wait.
+ *
+ * Only lifting. A thumb that drifts a few dp past the ring's edge is still a
+ * thumb that is holding; resetting ten seconds for it is a punishment, and
+ * punishment is what gets this uninstalled without changing anything.
  */
 @Composable
 private fun HoldRing(
@@ -207,7 +210,12 @@ private fun HoldRing(
                 awaitEachGesture {
                     awaitFirstDown()
                     holding = true
-                    waitForUpOrCancellation()
+                    // Keep going until every pointer lifts, wherever it is.
+                    // waitForUpOrCancellation would treat leaving the bounds
+                    // as a cancel, which is exactly the drift we are ignoring.
+                    do {
+                        val event = awaitPointerEvent()
+                    } while (event.changes.any { it.pressed })
                     holding = false
                 }
             },

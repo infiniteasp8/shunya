@@ -104,13 +104,21 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         query = value.filterNot { it == '\n' }
     }
 
-    /** Enter on the search field. Does nothing unless the query resolves cleanly. */
+    /**
+     * Go on the search field. Opens the row the resolution says is clearly
+     * meant — the sole match, or the sole exact match — and otherwise nothing.
+     */
     fun submit(launch: (AppEntry) -> Unit) {
         when (val r = resolution) {
-            is Resolution.Unique -> open(r.app, launch)
+            is Resolution.Matches -> r.primary?.let { open(it, launch) }
             is Resolution.Gated -> openGate(r.app)
-            else -> Unit
+            is Resolution.Nothing -> Unit
         }
+    }
+
+    /** A tapped row. The same as go, aimed at that row. */
+    fun pick(app: AppEntry, launch: (AppEntry) -> Unit) {
+        if (app.tier == Tier.TWO) openGate(app) else open(app, launch)
     }
 
     fun open(app: AppEntry, launch: (AppEntry) -> Unit) {
