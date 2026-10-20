@@ -4,6 +4,14 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+/**
+ * Release signing comes from the environment so the keystore never touches the
+ * repository. CI sets these from repository secrets; a build without them is
+ * signed with the debug key, which still installs but cannot update a build
+ * signed with anything else.
+ */
+val releaseKeystore: String? = System.getenv("SHUNYA_KEYSTORE")?.takeIf { it.isNotBlank() }
+
 android {
     namespace = "dev.anantpandey.shunya"
     compileSdk = 35
@@ -12,8 +20,19 @@ android {
         applicationId = "dev.anantpandey.shunya"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("SHUNYA_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("SHUNYA_KEY_ALIAS")
+                keyPassword = System.getenv("SHUNYA_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -24,6 +43,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"
