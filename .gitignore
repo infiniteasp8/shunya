@@ -17,3 +17,6 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+
+# Kotlin 2.x session data.
+.kotlin/
